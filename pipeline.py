@@ -12,6 +12,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+from data_loaders import load_data
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +38,7 @@ def parse_arguments():
 
     parser.add_argument("--input", "-i", required=True)
     parser.add_argument("--output", "-o", required=True)
-    parser.add_argument("--format", choices=["csv", "json"], default="csv")
+    parser.add_argument("--format", choices=["csv", "json"], default= "csv")
     parser.add_argument("--verbose", "-v", action="store_true")
 
     return parser.parse_args()
@@ -55,7 +56,6 @@ def validate_input(filepath):
 def main():
     """Main pipeline function."""
     args = parse_arguments()
-
     setup_logging(args.verbose)
 
     logger.debug(
@@ -67,6 +67,11 @@ def main():
 
     if not validate_input(args.input):
         sys.exit(1)
+
+        try:
+            data = load_data(args.input)
+        except ValueError:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
