@@ -13,6 +13,7 @@ import logging
 import sys
 from pathlib import Path
 from data_loaders import load_data
+from data_processor import process_data, create_cleaning_report
 
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ def setup_logging(verbose=False):
 
     logging.basicConfig(
         level=level,
-        format="%(asctime)s %(levelname)-8s %(message)s",
+        format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
         datefmt="%H:%M:%S"
     )
 
@@ -37,8 +38,8 @@ def parse_arguments():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--input", "-i", required=True)
+    parser.add_argument("--config", required=True)
     parser.add_argument("--output", "-o", required=True)
-    parser.add_argument("--format", choices=["csv", "json"], default= "csv")
     parser.add_argument("--verbose", "-v", action="store_true")
 
     return parser.parse_args()
@@ -49,9 +50,9 @@ def validate_input(filepath):
     if Path(filepath).is_file():
         logger.info("Input file validated: %s", filepath)
         return True
-
-    logger.error("Input file not found: %s", filepath)
-    return False
+    else:
+        logger.error("Input file not found: %s", filepath)
+        return False
 
 def main():
     """Main pipeline function."""
@@ -59,19 +60,45 @@ def main():
     setup_logging(args.verbose)
 
     logger.debug(
-        "Arguments parsed: input=%s, output=%s, format=%s",
+        "Arguments parsed: input=%s, output=%s, config=%s",
         args.input,
         args.output,
-        args.format
+        args.config
     )
 
     if not validate_input(args.input):
         sys.exit(1)
 
-        try:
-            data = load_data(args.input)
-        except ValueError:
-            sys.exit(1)
+    if not validate_input(args.config):
+        sys.exit(1)
+
+    try:
+        data = load_data(args.input)
+        config = load_data(args.config)
+
+    except ValueError:
+        sys.exit(1)
+
+    df_before = data.copy()
+
+    try:
+        data = process_data(data, config)
+    except ValueError:
+        sys.exit(1)
+
+    report = create_cleaning_report(df_before, data)
+
+    print(report)
+
+    logger.info(
+        "Processing complete: %d → %d rows",
+        report["rows_before"],
+        report["rows_after"]
+    )
+
+    data.to_csv(args.output, index=False)
+
+    logger.info("Saved cleaned data to %s", args.output)
 
 
 if __name__ == "__main__":
